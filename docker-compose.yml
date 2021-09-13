@@ -1,0 +1,52 @@
+# FOR LOCAL DEVELOPMENT
+version: "3"
+services:
+    user:
+        restart: on-failure
+        image: golang:1.15
+        ports:
+            - "8081:8081"
+        depends_on:
+            - userdbserver
+        links:
+            - userdbserver
+        volumes:
+            - ./:/go/src/user-service
+        working_dir: /go/src/user-service
+        command: go run main.go
+    userdbmigration:
+        restart: on-failure
+        image: migrate/migrate
+        depends_on:
+            - userdbserver
+        links:
+            - userdbserver
+        volumes:
+            - ./:/go/src/user-service
+        working_dir: /go/src/user-service
+        command: -path=./src/migration -database postgres://username:password@userdbserver:5432/userdb?sslmode=disable up
+    userdbbrowser:
+        restart: on-failure
+        image: adminer:4-standalone
+        ports:
+            - "18081:8080"
+        depends_on:
+            - userdbserver
+        links:
+            - userdbserver
+        logging:
+            driver: none
+        environment:
+          - ADMINER_DEFAULT_SERVER=userdbserver
+          - ADMINER_DESIGN=flat
+    userdbserver:
+        restart: always
+        image: kartoza/postgis:9.6-2.4
+        expose:
+            - 5432
+        logging:
+            driver: none
+        environment:
+          - POSTGRES_DB=userdb
+          - POSTGRES_USER=username
+          - POSTGRES_PASSWORD=password
